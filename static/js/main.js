@@ -1,16 +1,34 @@
 var $messages = $('.messages-content'),
-  d, h, m ,key;
+  d, h, m, key, auth;
 
 var avatar = "https://vignette.wikia.nocookie.net/leonhartimvu/images/d/d7/JARVIS_Logo.png/revision/latest?cb=20131024021443&format=original";
-apigClientFactory.newClient().chatbotGet({},{},{}).then(function(data){
-  key=data.data.key;
-});
 
+AWS.config;
+var accessKeyId;
+var secretAccessKey;
+var sessionToken;
 
 $(window).load(function () {
+  AWS.config.region = 'us-east-1'; // Region
+  AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+    IdentityPoolId: 'us-east-1:6b7685cb-c911-4d86-9a54-4070dec6aa9b',
+    Logins: {
+      'cognito-idp.us-east-1.amazonaws.com/us-east-1_pvmcyMFpG': window.location.hash.match(/\#(?:id_token)\=([\S\s]*?)\&/)[1]
+    }
+  });
+  AWS.config.credentials.clearCachedId();
+  AWS.config.credentials.get(function (err) {
+    console.log(AWS.config.credentials);
+    if (err) {
+      alert(err);
+    }
+    // Credentials will be available when this function is called.
+    accessKeyId = AWS.config.credentials.accessKeyId;
+    secretAccessKey = AWS.config.credentials.secretAccessKey;
+    ssessionToken = AWS.config.credentials.sessionToken;
+
+  });
   $messages.mCustomScrollbar();
-  // setTimeout(function () {
-  // }, 100);
 });
 
 function updateScrollbar() {
@@ -70,23 +88,27 @@ function Message(msg) {
 
 function awsPost() {
   var body = {
-    "messages": [
-      {
-        "type": "string",
-        "unstructured": {
-          "id": 10000*Math.random().toString(),
-          "text": $('.message-input').val(),
-          "timestamp": Date.now()
-        }
+    "messages": [{
+      "type": "string",
+      "unstructured": {
+        "id": accessKeyId,
+        "text": $('.message-input').val(),
+        "timestamp": Date.now()
       }
-    ]
+    }]
   }
   var apigClient = apigClientFactory.newClient({
-    apiKey: key
+    accessKey: AWS.config.credentials.accessKeyId,
+    secretKey: AWS.config.credentials.secretAccessKey,
+    sessionToken: AWS.config.credentials.sessionToken,
   });
-  apigClient.chatbotPost({}, body, { "headers": { "Content-Type": "application/json" } }).then(function (result) {
+  apigClient.chatbotPost({}, body, {
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }).then(function (result) {
     insertMessage(result.data.messages[0].unstructured.text);
   }).catch(function (error) {
-    alert(error);
+    console.log(error);
   });
 }
